@@ -32,11 +32,11 @@ jobs:
       - name: Configure Cloudflare credentials
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          GITHUB_OAUTH_CLIENT_SECRET: ${{ secrets.GITHUB_OAUTH_CLIENT_SECRET }}
+          OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
         run: |
           test -n "$CLOUDFLARE_API_TOKEN"
-          test -n "$GITHUB_OAUTH_CLIENT_SECRET"
-          printf '%s' "$GITHUB_OAUTH_CLIENT_SECRET" | npx wrangler secret put GITHUB_OAUTH_CLIENT_SECRET
+          test -n "$OAUTH_CLIENT_SECRET"
+          printf '%s' "$OAUTH_CLIENT_SECRET" | npx wrangler secret put GITHUB_OAUTH_CLIENT_SECRET
       - name: Deploy authorization server
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
