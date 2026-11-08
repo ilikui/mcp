@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gist-mcp-oauth",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-08",
+  "compatibility_flags": ["global_fetch_strictly_public"],
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "auth.likui.space", "custom_domain": true }
+  ],
+  "kv_namespaces": [
+    { "binding": "OAUTH_KV", "id": "REPLACE_WITH_DEDICATED_KV_NAMESPACE_ID" }
+  ]
+}
