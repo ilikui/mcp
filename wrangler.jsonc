@@ -9,6 +9,9 @@
     { "pattern": "auth.likui.space", "custom_domain": true }
   ],
   "kv_namespaces": [
-    { "binding": "OAUTH_KV", "id": "REPLACE_WITH_DEDICATED_KV_NAMESPACE_ID" }
-  ]
+    { "binding": "OAUTH_KV", "id": "8754177290e74e809c8204f268efe46e" }
+  ],
+  "vars": {
+    "GITHUB_OAUTH_CLIENT_ID": "Ov23liNyq8zrZF6HivMp"
+  }
 }
