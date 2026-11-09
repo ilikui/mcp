@@ -13,7 +13,16 @@ OAuth 2.1 authorization server for the existing `ilikui/gist-mcp` Cloudflare Wor
 
 ## Important safety boundary
 
-The resource Worker now keeps the existing `MCP_ACCESS_TOKEN` path and adds OAuth validation through a private Service Binding. The four Gist tools remain available. Validate the public OAuth discovery and end-to-end login before considering ChatGPT connection complete. Never commit OAuth client secrets, GitHub tokens, Cloudflare API tokens, or the legacy MCP access token.
+The resource Worker now keeps the existing `MCP_ACCESS_TOKEN` path and adds OAuth validation through a private Service Binding. The Gist MCP exposes list/read/create/update/delete operations, including deleting an individual file or the entire configured Gist. Validate the public OAuth discovery and end-to-end login before considering ChatGPT connection complete. Never commit OAuth client secrets, GitHub tokens, Cloudflare API tokens, or the legacy MCP access token.
+
+## Gist permissions and operations
+
+OAuth supports two scopes:
+
+- `mcp:read`: list Gist files and read file contents.
+- `mcp:write`: create files, update existing files, delete individual files, and permanently delete the configured Gist.
+
+Write operations are checked on the resource server; a token without `mcp:write` cannot create, update, or delete. File and whole-Gist deletion require the latest `updated_at` value to reduce stale-operation risk. Whole-Gist deletion additionally requires `confirm: true`. The legacy static `MCP_ACCESS_TOKEN` path retains its existing full-access behavior.
 
 ## Required Cloudflare secrets
 
