@@ -213,6 +213,19 @@ export class GistMcpOAuth extends WorkerEntrypoint<Env> {
       return await authorizationServer.fetch(request, this.env, this.ctx);
     } catch (error) {
       if (error instanceof AuthorizationError) {
+        const cookieNames = (request.headers.get("cookie") ?? "")
+          .split(";")
+          .map((part) => part.trim().split("=")[0])
+          .filter(Boolean);
+        console.warn("OAuth authorization transaction rejected", {
+          path: url.pathname,
+          rayId: request.headers.get("cf-ray"),
+          message: error.message,
+          description: error.description,
+          hasState: url.searchParams.has("state"),
+          hasCode: url.searchParams.has("code"),
+          cookieNames,
+        });
         return errorPage(error.description || "授权会话已失效，请返回 ChatGPT 重新发起连接。", 400);
       }
       console.error("Unhandled OAuth Worker error", {
