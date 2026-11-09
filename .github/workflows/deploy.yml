@@ -65,3 +65,53 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy --config resource-server/wrangler.jsonc
+
+  smoke-test:
+    needs: deploy-resource-server
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify public OAuth and MCP endpoints
+        env:
+          AUTH_URL: https://auth.likui.space
+          MCP_URL: https://mcp.likui.space
+        run: |
+          set -euo pipefail
+          fetch_json() {
+            curl --fail --silent --show-error --location \
+              --retry 8 --retry-all-errors --retry-delay 3 \
+              --connect-timeout 10 --max-time 30 "$1"
+          }
+
+          AUTH_HEALTH="$(fetch_json "$AUTH_URL/health")"
+          MCP_HEALTH="$(fetch_json "$MCP_URL/health")"
+          AUTH_METADATA="$(fetch_json "$AUTH_URL/.well-known/oauth-authorization-server")"
+          RESOURCE_METADATA="$(fetch_json "$MCP_URL/.well-known/oauth-protected-resource/mcp")"
+
+          AUTH_HEALTH="$AUTH_HEALTH" MCP_HEALTH="$MCP_HEALTH" \
+          AUTH_METADATA="$AUTH_METADATA" RESOURCE_METADATA="$RESOURCE_METADATA" \
+          node --input-type=module <<'NODE'
+          const parse = (name) => {
+            try { return JSON.parse(process.env[name]); }
+            catch { throw new Error(name + " did not return valid JSON"); }
+          };
+          const authHealth = parse("AUTH_HEALTH");
+          const mcpHealth = parse("MCP_HEALTH");
+          const auth = parse("AUTH_METADATA");
+          const resource = parse("RESOURCE_METADATA");
+
+          if (authHealth.ok !== true || authHealth.issuer !== "https://auth.likui.space") {
+            throw new Error("Authorization Worker health check failed");
+          }
+          if (mcpHealth.status !== "deployed" || mcpHealth.oauth !== true) {
+            throw new Error("MCP Resource Worker health check failed");
+          }
+          if (auth.issuer !== "https://auth.likui.space" || !auth.authorization_endpoint || !auth.token_endpoint) {
+            throw new Error("OAuth authorization-server metadata is incomplete");
+          }
+          if (resource.resource !== "https://mcp.likui.space/mcp" ||
+              !Array.isArray(resource.authorization_servers) ||
+              !resource.authorization_servers.includes("https://auth.likui.space")) {
+            throw new Error("Protected-resource metadata does not point to the expected issuer");
+          }
+          console.log("Public OAuth discovery and MCP health checks passed.");
+          NODE
