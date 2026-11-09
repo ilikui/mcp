@@ -86,7 +86,24 @@ async function invoke(name: string, a: any, e: Env) {
     if (!u.files?.[n]) throw Error("GitHub did not confirm creation of the requested file.");
     return { success: true, created: true, gist_id: GIST_ID, file_name: n, updated_at: u.updated_at, html_url: u.html_url, message: "New Gist file created; existing files were not intentionally modified." };
   }
-  if (name === "gist_delete_file") {\n    const n = String(a.file_name || ""), expected = String(a.expected_updated_at || "");\n    if (!n || !expected) throw Error("file_name and expected_updated_at are required.");\n    const g = await gh(e);\n    if (!g.files?.[n]) throw Error("File not found.");\n    if (g.updated_at !== expected) throw Error("Conflict: Gist changed since last read. Read latest content before deleting.");\n    const u = await gh(e, "PATCH", { files: { [n]: null } });\n    return { success: true, deleted: true, gist_id: GIST_ID, file_name: n, updated_at: u.updated_at, html_url: u.html_url, message: "Gist file deleted." };\n  }\n  if (name === "gist_delete") {\n    const expected = String(a.expected_updated_at || "");\n    if (!expected || a.confirm !== true) throw Error("expected_updated_at and confirm=true are required.");\n    const g = await gh(e);\n    if (g.updated_at !== expected) throw Error("Conflict: Gist changed since last read. Read latest Gist before deleting.");\n    await gh(e, "DELETE");\n    return { success: true, deleted: true, gist_id: GIST_ID, message: "The configured Gist was permanently deleted." };\n  }\n  if (name === "gist_update") {
+  if (name === "gist_delete_file") {
+    const n = String(a.file_name || ""), expected = String(a.expected_updated_at || "");
+    if (!n || !expected) throw Error("file_name and expected_updated_at are required.");
+    const g = await gh(e);
+    if (!g.files?.[n]) throw Error("File not found.");
+    if (g.updated_at !== expected) throw Error("Conflict: Gist changed since last read. Read latest content before deleting.");
+    const u = await gh(e, "PATCH", { files: { [n]: null } });
+    return { success: true, deleted: true, gist_id: GIST_ID, file_name: n, updated_at: u.updated_at, html_url: u.html_url, message: "Gist file deleted." };
+  }
+  if (name === "gist_delete") {
+    const expected = String(a.expected_updated_at || "");
+    if (!expected || a.confirm !== true) throw Error("expected_updated_at and confirm=true are required.");
+    const g = await gh(e);
+    if (g.updated_at !== expected) throw Error("Conflict: Gist changed since last read. Read latest Gist before deleting.");
+    await gh(e, "DELETE");
+    return { success: true, deleted: true, gist_id: GIST_ID, message: "The configured Gist was permanently deleted." };
+  }
+  if (name === "gist_update") {
     const n = String(a.file_name || ""), c = a.content, expected = String(a.expected_updated_at || "");
     if (!n || typeof c !== "string" || !expected) throw Error("file_name, content, expected_updated_at are required.");
     if (c.length > 900000) throw Error("Content exceeds 900 KB limit.");
