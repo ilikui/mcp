@@ -12,6 +12,7 @@
   },
   "include": [
     "src/**/*.ts",
-    "test/**/*.ts"
+    "test/**/*.ts",
+    "resource-server/**/*.ts"
   ]
 }
