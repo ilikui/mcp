@@ -192,24 +192,38 @@ async function githubCallback(request: Request, env: Env): Promise<Response> {
 export class GistMcpOAuth extends WorkerEntrypoint<Env> {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname === "/health") {
-      return Response.json({
-        ok: true,
-        service: "gist-mcp-oauth",
-        issuer: ISSUER,
-        resource: RESOURCE,
+    try {
+      if (url.pathname === "/health") {
+        return Response.json({
+          ok: true,
+          service: "gist-mcp-oauth",
+          issuer: ISSUER,
+          resource: RESOURCE,
+        });
+      }
+      if (url.pathname === "/authorize" && request.method === "GET") {
+        return await githubAuthorize(request, this.env);
+      }
+      if (url.pathname === "/authorize" && request.method === "POST") {
+        return await authorizePost(request, this.env);
+      }
+      if (url.pathname === "/callback" && request.method === "GET") {
+        return await githubCallback(request, this.env);
+      }
+      return await authorizationServer.fetch(request, this.env, this.ctx);
+    } catch (error) {
+      if (error instanceof AuthorizationError) {
+        return errorPage(error.description || "授权会话已失效，请返回 ChatGPT 重新发起连接。", 400);
+      }
+      console.error("Unhandled OAuth Worker error", {
+        path: url.pathname,
+        method: request.method,
+        rayId: request.headers.get("cf-ray"),
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
       });
+      return errorPage("授权服务暂时发生错误，请返回 ChatGPT 重新发起连接。", 500);
     }
-    if (url.pathname === "/authorize" && request.method === "GET") {
-      return githubAuthorize(request, this.env);
-    }
-    if (url.pathname === "/authorize" && request.method === "POST") {
-      return authorizePost(request, this.env);
-    }
-    if (url.pathname === "/callback" && request.method === "GET") {
-      return githubCallback(request, this.env);
-    }
-    return authorizationServer.fetch(request, this.env, this.ctx);
   }
 
   validateToken(resource: string, token: string) {
