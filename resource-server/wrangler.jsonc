@@ -1,0 +1,17 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "gist-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-08",
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "mcp.likui.space", "custom_domain": true }
+  ],
+  "services": [
+    {
+      "binding": "AUTH_SERVER",
+      "service": "gist-mcp-oauth",
+      "entrypoint": "GistMcpOAuth"
+    }
+  ]
+}
