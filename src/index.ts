@@ -189,7 +189,7 @@ async function githubCallback(request: Request, env: Env): Promise<Response> {
   return new Response(null, { status: 302, headers });
 }
 
-export default class GistMcpOAuth extends WorkerEntrypoint<Env> {
+export class GistMcpOAuth extends WorkerEntrypoint<Env> {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/health") {
@@ -216,3 +216,5 @@ export default class GistMcpOAuth extends WorkerEntrypoint<Env> {
     return authorizationServer.validateToken(resource, token, this.env);
   }
 }
+
+export default GistMcpOAuth;
