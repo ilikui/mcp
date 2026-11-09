@@ -157,13 +157,32 @@ async function githubCallback(request: Request, env: Env): Promise<Response> {
       code_verifier: data.verifier,
     }),
   });
-  const tokenData = await tokenResponse.json() as {
+  const tokenBody = await tokenResponse.text();
+  let tokenData: {
     access_token?: string;
     error?: string;
     error_description?: string;
   };
+  try {
+    tokenData = JSON.parse(tokenBody) as typeof tokenData;
+  } catch {
+    console.error("GitHub token endpoint returned invalid JSON", {
+      status: tokenResponse.status,
+      contentType: tokenResponse.headers.get("content-type"),
+      bodyLength: tokenBody.length,
+    });
+    return errorPage(
+      `GitHub Token 交换接口返回了无效响应（HTTP ${tokenResponse.status}）。请稍后重新连接。`,
+      502,
+    );
+  }
   if (!tokenResponse.ok || !tokenData.access_token) {
-    return errorPage(tokenData.error_description ?? tokenData.error ?? "GitHub Token 交换失败。", 502);
+    console.error("GitHub token exchange was rejected", {
+      status: tokenResponse.status,
+      error: tokenData.error,
+      description: tokenData.error_description,
+    });
+    return errorPage(tokenData.error_description ?? tokenData.error ?? `GitHub Token 交换失败（HTTP ${tokenResponse.status}）。`, 502);
   }
 
   const userResponse = await fetch("https://api.github.com/user", {
