@@ -17,7 +17,7 @@ interface Env {
 
 const GIST_ID = "ef6b39d2648e666f47b129b54d3f09f7";
 const API = "https://api.github.com";
-const INFO = { name: "ilikui-gist-mcp", version: "1.1.0" };
+const INFO = { name: "ilikui-gist-mcp", version: "1.2.0" };
 const RESOURCE = "https://mcp.likui.space/mcp";
 const ISSUER = "https://auth.likui.space";
 
@@ -54,6 +54,8 @@ const tools = [
   { name: "gist_read", description: "Read one existing file from the configured Gist. Does not modify content.", inputSchema: { type: "object", properties: { file_name: { type: "string", description: "Exact existing filename" } }, required: ["file_name"], additionalProperties: false } },
   { name: "gist_update", description: "Replace the contents of one existing file in the configured Gist. Cannot create/delete files. Must supply updated_at from the latest read/list result; stale updates are rejected.", inputSchema: { type: "object", properties: { file_name: { type: "string" }, content: { type: "string" }, expected_updated_at: { type: "string" } }, required: ["file_name", "content", "expected_updated_at"], additionalProperties: false } },
   { name: "gist_create_file", description: "Create a new file in the configured Gist. Refuses to overwrite an existing filename.", inputSchema: { type: "object", properties: { file_name: { type: "string", description: "New filename" }, content: { type: "string", description: "Markdown or text content" } }, required: ["file_name", "content"], additionalProperties: false } },
+  { name: "gist_delete_file", description: "Delete one existing file from the configured Gist. Requires expected_updated_at from the latest list/read result to prevent stale deletion.", inputSchema: { type: "object", properties: { file_name: { type: "string" }, expected_updated_at: { type: "string" } }, required: ["file_name", "expected_updated_at"], additionalProperties: false } },
+  { name: "gist_delete", description: "Delete the entire configured Gist. This is irreversible; requires expected_updated_at from the latest list/read result.", inputSchema: { type: "object", properties: { expected_updated_at: { type: "string" }, confirm: { type: "boolean", description: "Must be true to confirm permanent deletion" } }, required: ["expected_updated_at", "confirm"], additionalProperties: false } },
 ];
 
 async function invoke(name: string, a: any, e: Env) {
@@ -84,7 +86,7 @@ async function invoke(name: string, a: any, e: Env) {
     if (!u.files?.[n]) throw Error("GitHub did not confirm creation of the requested file.");
     return { success: true, created: true, gist_id: GIST_ID, file_name: n, updated_at: u.updated_at, html_url: u.html_url, message: "New Gist file created; existing files were not intentionally modified." };
   }
-  if (name === "gist_update") {
+  if (name === "gist_delete_file") {\n    const n = String(a.file_name || ""), expected = String(a.expected_updated_at || "");\n    if (!n || !expected) throw Error("file_name and expected_updated_at are required.");\n    const g = await gh(e);\n    if (!g.files?.[n]) throw Error("File not found.");\n    if (g.updated_at !== expected) throw Error("Conflict: Gist changed since last read. Read latest content before deleting.");\n    const u = await gh(e, "PATCH", { files: { [n]: null } });\n    return { success: true, deleted: true, gist_id: GIST_ID, file_name: n, updated_at: u.updated_at, html_url: u.html_url, message: "Gist file deleted." };\n  }\n  if (name === "gist_delete") {\n    const expected = String(a.expected_updated_at || "");\n    if (!expected || a.confirm !== true) throw Error("expected_updated_at and confirm=true are required.");\n    const g = await gh(e);\n    if (g.updated_at !== expected) throw Error("Conflict: Gist changed since last read. Read latest Gist before deleting.");\n    await gh(e, "DELETE");\n    return { success: true, deleted: true, gist_id: GIST_ID, message: "The configured Gist was permanently deleted." };\n  }\n  if (name === "gist_update") {
     const n = String(a.file_name || ""), c = a.content, expected = String(a.expected_updated_at || "");
     if (!n || typeof c !== "string" || !expected) throw Error("file_name, content, expected_updated_at are required.");
     if (c.length > 900000) throw Error("Content exceeds 900 KB limit.");
@@ -110,7 +112,7 @@ async function handleMcp(req: Request, env: Env): Promise<Response> {
   try { b = await req.json(); } catch { return reply({ error: "Expected JSON-RPC" }, 400); }
   if (!b || b.jsonrpc !== "2.0" || typeof b.method !== "string") return reply({ error: "Invalid JSON-RPC" }, 400);
   if (b.method.startsWith("notifications/")) return new Response(null, { status: 202 });
-  if (b.method === "initialize") return rpc(b.id ?? null, { protocolVersion: b.params?.protocolVersion || "2025-03-26", capabilities: { tools: { listChanged: false } }, serverInfo: INFO, instructions: "Restricted to one configured Gist. Read existing files, create new files without overwriting, or replace existing file contents only with updated_at concurrency protection. No delete." });
+  if (b.method === "initialize") return rpc(b.id ?? null, { protocolVersion: b.params?.protocolVersion || "2025-03-26", capabilities: { tools: { listChanged: false } }, serverInfo: INFO, instructions: "Restricted to one configured Gist. List and read files; create new files without overwriting; update or delete files with updated_at concurrency protection; or permanently delete the entire Gist with explicit confirmation." });
   if (b.method === "ping") return rpc(b.id ?? null, {});
   if (b.method === "tools/list") return rpc(b.id ?? null, { tools });
   if (b.method === "tools/call") {
@@ -132,7 +134,7 @@ const oauthResource = new OAuthResourceServer<Env, Record<string, unknown>>({
       if (request.method === "POST") {
         const body = await request.clone().json().catch(() => null) as any;
         const toolName = body?.params?.name;
-        if (body?.method === "tools/call" && ["gist_update", "gist_create_file"].includes(toolName) && !ctx.auth.scope.includes("mcp:write")) {
+        if (body?.method === "tools/call" && ["gist_update", "gist_create_file", "gist_delete_file", "gist_delete"].includes(toolName) && !ctx.auth.scope.includes("mcp:write")) {
           return insufficientScope(ctx.auth, ["mcp:read", "mcp:write"]);
         }
       }
