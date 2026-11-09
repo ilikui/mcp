@@ -141,7 +141,7 @@ async function handleMcp(req: Request, env: Env): Promise<Response> {
 
 const oauthResource = new OAuthResourceServer<Env, Record<string, unknown>>({
   resourceMetadata: { resource: RESOURCE, authorization_servers: [ISSUER] },
-  requiredScopes: ["mcp:read"],
+  requiredScopes: ["mcp:read", "mcp:write"],
   validateToken: (env) => env.AUTH_SERVER.validateToken,
   handler: {
     async fetch(request, env, ctx) {
