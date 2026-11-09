@@ -13,5 +13,12 @@
   ],
   "vars": {
     "GITHUB_OAUTH_CLIENT_ID": "Ov23liNyq8zrZF6HivMp"
+  },
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "invocation_logs": true,
+      "head_sampling_rate": 1
+    }
   }
 }
