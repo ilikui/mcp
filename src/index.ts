@@ -147,7 +147,7 @@ async function githubCallback(request: Request, env: Env): Promise<Response> {
     method: "POST",
     headers: {
       Accept: "application/json",
-      "Content-Type": "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
     },
     body: new URLSearchParams({
       client_id: env.GITHUB_OAUTH_CLIENT_ID,
