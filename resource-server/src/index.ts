@@ -1,4 +1,4 @@
-import { OAuthResourceServer } from "@cloudflare/workers-oauth-provider";
+import { OAuthResourceServer, insufficientScope } from "@cloudflare/workers-oauth-provider";
 
 interface Env {
   GITHUB_TOKEN: string;
@@ -127,7 +127,14 @@ const oauthResource = new OAuthResourceServer<Env, Record<string, unknown>>({
   handler: {
     async fetch(request, env, ctx) {
       if (!ctx.auth.scope.includes("mcp:read")) {
-        return new Response(JSON.stringify({ error: "insufficient_scope" }), { status: 403, headers: { "content-type": "application/json", "www-authenticate": 'Bearer error="insufficient_scope", scope="mcp:read", resource_metadata="https://mcp.likui.space/.well-known/oauth-protected-resource/mcp"' } });
+        return insufficientScope(ctx.auth, ["mcp:read"]);
+      }
+      if (request.method === "POST") {
+        const body = await request.clone().json().catch(() => null) as any;
+        const toolName = body?.params?.name;
+        if (body?.method === "tools/call" && ["gist_update", "gist_create_file"].includes(toolName) && !ctx.auth.scope.includes("mcp:write")) {
+          return insufficientScope(ctx.auth, ["mcp:read", "mcp:write"]);
+        }
       }
       return handleMcp(request, env);
     },
