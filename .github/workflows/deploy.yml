@@ -18,6 +18,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: MCP
     steps:
       - name: Checkout
         uses: actions/checkout@v4
