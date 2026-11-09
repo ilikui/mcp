@@ -13,7 +13,7 @@ OAuth 2.1 authorization server for the existing `ilikui/gist-mcp` Cloudflare Wor
 
 ## Important safety boundary
 
-This project must not replace the existing Gist MCP Worker until the OAuth authorization server, resource-server validation, and both authentication paths have been tested. Never commit OAuth client secrets, GitHub tokens, Cloudflare API tokens, or the legacy MCP access token.
+The resource Worker now keeps the existing `MCP_ACCESS_TOKEN` path and adds OAuth validation through a private Service Binding. The four Gist tools remain available. Validate the public OAuth discovery and end-to-end login before considering ChatGPT connection complete. Never commit OAuth client secrets, GitHub tokens, Cloudflare API tokens, or the legacy MCP access token.
 
 ## Required Cloudflare secrets
 
@@ -39,19 +39,21 @@ The existing `GITHUB_OAUTH_CLIENT_SECRET` on `gist-mcp` is not automatically sha
 
 ## Planned source layout
 
-- `src/index.ts`: OAuth authorization server entry point
-- `wrangler.jsonc`: Worker, custom domain, KV, and build configuration
-- `.github/workflows/deploy.yml`: CI deployment after repository secrets are configured
+- `src/index.ts`: OAuth authorization server and `GistMcpOAuth` RPC entry point
+- `wrangler.jsonc`: authorization Worker, custom domain, and KV configuration
+- `resource-server/src/index.ts`: Gist MCP tools, OAuth resource validation, scope checks, and legacy static-token compatibility
+- `resource-server/wrangler.jsonc`: existing `gist-mcp` custom domain and `AUTH_SERVER` Service Binding
+- `.github/workflows/deploy.yml`: type-checks and deploys the authorization Worker, then the Gist resource Worker
 
 The OAuth authorize route must validate the MCP client's request, show a consent page, bind upstream GitHub login state to the browser, exchange the GitHub authorization code, and then issue an audience-bound MCP token. Do not replace this flow with a direct GitHub login redirect.
 
 ## GitHub Actions secrets required for deployment
 
-Add these repository Actions secrets under Settings → Secrets and variables → Actions:
+Configure these GitHub Actions Environment secrets in the `MCP` environment (the workflow declares `environment: MCP`):
 
 - `CLOUDFLARE_API_TOKEN`: a scoped Cloudflare API token with Workers Scripts edit and required KV/Workers deployment permissions for this account.
 - `CLOUDFLARE_ACCOUNT_ID`: `2aac639a7877e949348ae47adca69aa1`.
-- `GITHUB_OAUTH_CLIENT_SECRET`: the OAuth App client secret (never commit it).
+- `OAUTH_CLIENT_SECRET`: the GitHub OAuth App client secret (never commit it).
 
 The GitHub Actions workflow installs dependencies, type-checks, writes the client secret to the new Worker as a Worker secret, and deploys `gist-mcp-oauth`. The workflow cannot deploy until all three secrets exist and the custom hostname is available in the Cloudflare zone.
 
@@ -64,4 +66,4 @@ npm run test
 npm run deploy
 ```
 
-Deployment is intentionally gated until the Worker bindings, custom domain, and GitHub secrets are configured and the existing resource Worker has its dual-auth implementation.
+The dual-auth resource Worker has been deployed. Runtime checks of the public metadata endpoints, legacy-token request path, OAuth login, and ChatGPT connection are still required.
